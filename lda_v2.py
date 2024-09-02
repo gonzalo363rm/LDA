@@ -1,16 +1,25 @@
 # Import necessary libraries
-import pandas as pd
-import gensim
 from gensim import corpora
 from gensim.models import LdaModel
-from gensim.utils import simple_preprocess
 from gensim.models.coherencemodel import CoherenceModel
-import numpy as np
-
+from gensim.utils import simple_preprocess
 from multiprocessing import freeze_support
-
-from nltk.corpus import stopwords
 from multiprocessing import process
+import gensim
+import nltk
+from nltk.corpus import stopwords
+import numpy as np
+import pandas as pd
+import ssl
+
+try:
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+else:
+    ssl._create_default_https_context = _create_unverified_https_context
+
+nltk.download('stopwords')
 
 # Preprocess text data
 def preprocess_text(text):

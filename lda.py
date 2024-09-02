@@ -1,54 +1,53 @@
+# Import necessary libraries
 import pandas as pd
 import gensim
 from gensim import corpora
 from gensim.models import LdaModel
 from gensim.utils import simple_preprocess
-from gensim.parsing.preprocessing import STOPWORDS
 from gensim.models.coherencemodel import CoherenceModel
-from nltk.stem import SnowballStemmer
-from nltk.corpus import stopwords
-from unidecode import unidecode
-import spacy
-from spacy.lang.es import Spanish
-import nltk
-from multiprocessing import freeze_support  # Agregado
 
-# Agregar esta línea para evitar el error
+from multiprocessing import freeze_support
+
+from nltk.corpus import stopwords
+
 if __name__ == '__main__':
     freeze_support()
 
-    # Resto del código aquí
-    nlp = spacy.load('es_core_news_sm')
+    # Preprocess text data
+    def preprocess_text(text):
+        spanish_stopwords = set(stopwords.words('spanish'))
+        return [token for token in simple_preprocess(text) if token not in gensim.parsing.preprocessing.STOPWORDS and token not in spanish_stopwords and len(token) > 3]
 
-    # Otro código aquí
+    from multiprocessing import process
+    # Load data
+    data = pd.read_csv("tweets_municipalidad.csv")
+    data = data['tweet'].astype(str)
+    processed_data= [preprocess_text(text) for text in data]
 
-    spanish_stopwords = set(stopwords.words('spanish'))
-
-    def preprocess(text):
-        result = []
-        doc = nlp(text)
-        for token in doc:
-            if token.is_alpha and token.text.lower() not in spanish_stopwords and len(token.text) > 3:
-                token_text = unidecode(token.text.lower())
-                result.append(token_text)
-        return result
-
-    docs = pd.read_csv('C:/Users/gonza/Desktop/J/wFacu/Tesina/LDA/tweets_municipalidad.csv')
-    docs['tweet'] = docs['tweet'].astype(str)
-    processed_data = docs['tweet'].map(preprocess)
-
+    # Create dictionary and corpus
     dictionary = corpora.Dictionary(processed_data)
     corpus = [dictionary.doc2bow(text) for text in processed_data]
 
-    num_topics = 8
-    lda_model = LdaModel(corpus=corpus, id2word=dictionary, num_topics=num_topics, alpha=(50/num_topics), eta=0.5)
+    # TODO: Agregar en el preprocesamiento eliminador de enlace (twitter)
+
+    # Build LDA model
+    lda_model = LdaModel(corpus=corpus,
+                        id2word=dictionary,
+                        num_topics=8,
+                        random_state=42,
+                        update_every=1,
+                        chunksize=25000,
+                        passes=100,
+                        alpha=0.05,
+                        eta=0.05,
+                        per_word_topics=False)
+
+    # Print top 10 words for each topic
+    for topic in lda_model.print_topics(num_topics=8, num_words=10):
+        print(topic)
 
     # Calcular coherencia
     coherence_model_lda = CoherenceModel(model=lda_model, texts=processed_data, dictionary=dictionary, coherence='c_v')
     coherence_lda = coherence_model_lda.get_coherence()
 
     print(f'\nCoherencia del modelo LDA: {coherence_lda}')
-
-    topics = lda_model.print_topics(num_topics=num_topics)
-    for topic in topics:
-        print(topic)
